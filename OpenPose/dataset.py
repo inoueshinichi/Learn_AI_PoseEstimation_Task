@@ -26,7 +26,7 @@ import json
 from collections import namedtuple
 
 import numpy as np
-from PIL import Image
+import PIL
 
 import torch
 import torch.cuda
@@ -43,7 +43,7 @@ disk_cache_tag: str = f"{scope}_{version}"
 
 # 生データセットのディスクキャッシュ
 gzip_cache: FanoutCache = make_disk_cache(
-    cache_dir="F:/OpenPose",                                         
+    cache_dir="F:/Cache/OpenPose",                                         
     scope=scope,
     version=version,
     )
@@ -199,13 +199,13 @@ class MS_COCO_Image:
     def __init__(self,
                  img_path: str,
                  ):
-        self.pil_img: Image = Image.open(img_path)
+        self.pil_img: PIL.Image = PIL.Image.open(img_path)
         self.np_img: np.ndarray = np.array(self.pil_img, dtype=np.float32) # (C,H,W)
 
     def get_np_img(self) -> np.ndarray:
         return self.np_img
     
-    def get_pil_img(self) -> Image:
+    def get_pil_img(self) -> PIL.Image:
         return self.pil_img
     
 
@@ -226,7 +226,6 @@ class MSCOCOKeyPointsDataset(Dataset):
                  dataset_dir: str,
                  mode: str = 'trn',
                  sortby: str = 'random',
-                 ratio: int = 0,
                  ):
         pass
 
