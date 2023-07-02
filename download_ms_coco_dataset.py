@@ -37,9 +37,9 @@ def download_method(dataset_dir: str, file_basename: str) -> str:
         urllib.request.urlretrieve(url, target_path)
     
         # zip
-        zip = zipfile.ZipFile(target_path)
-        zip.extractall(target_path)  # ZIPを解凍
-        zip.close()  # ZIPファイルをクローズ
+        # zip = zipfile.ZipFile(target_path)
+        # zip.extractall(target_path)  # ZIPを解凍
+        # zip.close()  # ZIPファイルをクローズ
         download_path = target_path
         
     return download_path
