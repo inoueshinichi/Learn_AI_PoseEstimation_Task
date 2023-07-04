@@ -97,10 +97,10 @@ class GzipDisk(Disk):
     
 
 def make_disk_cache(cache_dir: str,
-                   scope: str,
+                   target: str,
                    version: str,
                    ):
-    caching_dir = cache_dir + f'/cache-{scope}/{version}'
+    caching_dir = cache_dir + f'/cache_{target}/{version}'
     return FanoutCache(
         directory=caching_dir,
         disk=GzipDisk,

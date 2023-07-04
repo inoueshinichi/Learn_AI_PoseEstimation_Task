@@ -3,8 +3,6 @@
 import os
 import sys
 
-from diskcache import FanoutCache
-
 # os.sepはプラットフォーム固有の区切り文字(Windows: `\`, Unix: `/`)
 module_parent_dir = os.sep.join([os.path.dirname(__file__), '..'])
 # print("module_parent_dir", module_parent_dir)
@@ -25,8 +23,9 @@ import random
 import json
 from collections import namedtuple
 
+from diskcache import FanoutCache
 import numpy as np
-import PIL
+from PIL import Image
 
 import torch
 import torch.cuda
@@ -37,21 +36,28 @@ from type_hint import *
 from disk import make_disk_cache
 
 
-scope: str = "MS_COCO"
-version: str = '2014'
-disk_cache_tag: str = f"{scope}_{version}"
+dataset: str = "MS_COCO"
+year: str = '2017'
+scope: str = "keypoints"
+task: str = f"{dataset}_{year}_{scope}"
+version: str = "1.0"
+disk_cache_tag: str = f"{task}_{version}"
 
 # 生データセットのディスクキャッシュ
 gzip_cache: FanoutCache = make_disk_cache(
     cache_dir="F:/Cache/OpenPose",                                         
-    scope=scope,
+    target=task,
     version=version,
     )
+
+annotation: dict = {
+    
+}
 
 # データレコード
 OpenPoseRecordInfoTuple = namedtuple(
     'OpenPoseRecordInfoTuple',
-    ['index', 'img_path', 'mask_path', 'coco_annotation']
+    ['index', 'img_path', 'mask_path', 'annotation']
 )
 
 # 訓練データセットの取得
@@ -199,13 +205,13 @@ class MS_COCO_Image:
     def __init__(self,
                  img_path: str,
                  ):
-        self.pil_img: PIL.Image = PIL.Image.open(img_path)
+        self.pil_img: Image = Image.open(img_path)
         self.np_img: np.ndarray = np.array(self.pil_img, dtype=np.float32) # (C,H,W)
 
     def get_np_img(self) -> np.ndarray:
         return self.np_img
     
-    def get_pil_img(self) -> PIL.Image:
+    def get_pil_img(self) -> Image:
         return self.pil_img
     
 

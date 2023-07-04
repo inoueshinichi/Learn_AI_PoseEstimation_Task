@@ -60,6 +60,6 @@ def download_ms_coco_image_2017(dataset_dir: str):
 
 
 if __name__ == "__main__":
-    dataset_dir = "F:/MS_COCO/2017"
-    download_ms_coco_image_2017(dataset_dir)
+    # dataset_dir = "F:/MS_COCO/2017"
+    # download_ms_coco_image_2017(dataset_dir)
     
