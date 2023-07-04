@@ -35,7 +35,6 @@ from torch.utils.data import Dataset
 from type_hint import *
 from disk import make_disk_cache
 
-
 dataset: str = "MS_COCO"
 year: str = '2017'
 scope: str = "keypoints"
@@ -45,189 +44,238 @@ disk_cache_tag: str = f"{task}_{version}"
 
 # 生データセットのディスクキャッシュ
 gzip_cache: FanoutCache = make_disk_cache(
-    cache_dir="F:/Cache/OpenPose",                                         
+    cache_dir="F:/OpenPose/Cache",                                       
     target=task,
     version=version,
     )
 
-annotation: dict = {
-    
-}
+# 人体の各ポイント(MS_COCOのアノテーションに対して, "neck": 0を追加している)
+keypoints: dict = {
+   "neck": 0,
+   "nose": 1,
+   "left_eye": 2,
+   "right_eye": 3,
+   "left_ear": 4, 
+   "right_ear": 5,
+   "left_shoulder": 6,
+   "right_shoulder": 7,
+   "left_elbow": 8,
+   "right_elbow": 9,
+   "left_wrist": 10,
+   "right_wrist": 11,
+   "left_hip": 12,
+   "right_hip": 13,
+   "left_knee": 14,
+   "right_knee": 15,
+   "left_ankle": 16,
+   "right_angle": 17,
+} # 18個
 
-# データレコード
-OpenPoseRecordInfoTuple = namedtuple(
-    'OpenPoseRecordInfoTuple',
-    ['index', 'img_path', 'mask_path', 'annotation']
+# 人体の各ポイントのリンク
+skeltons: dict = {
+    "neck_2_left_hip": 0,
+    "left_hip_2_neck": 1,
+    "left_hip_2_left_knee": 2,
+    "left_knee_2_left_hip": 3,
+    "left_knee_2_left_ankle": 4,
+    "left_ankle_2_left_knee": 5,
+    "neck_2_right_hip": 6,
+    "right_hip_2_neck": 7,
+    "right_hip_2_right_knee": 8,
+    "right_knee_2_right_hip": 9,
+    "right_knee_2_right_ankle": 10,
+    "right_ankle_2_right_knee": 11,
+    "neck_2_left_shoulder": 12,
+    "left_shoulder_2_neck": 13,
+    "left_shoulder_2_left_elbow": 14,
+    "left_elbow_2_left_shoulder": 15,
+    "left_elbow_2_left_wrist": 16,
+    "left_wrist_2_left_elbow":17,
+    "neck_2_right_shoulder": 20,
+    "right_shoulder_2_neck": 21,
+    "right_shoulder_2_right_elbow": 22,
+    "right_elbow_2_right_shoulder": 23,
+    "right_elbow_2_right_wrist": 24,
+    "right_wrist_2_right_elbow": 25,
+    "neck_2_nose": 28,
+    "nose_2_neck": 29,
+    "nose_2_left_eye": 30,
+    "left_eye_2_nose": 31,
+    "nose_2_right_eye": 32,
+    "right_eye_2_nose": 33,
+    "left_eye_2_left_ear": 36,
+    "left_ear_2_left_eye": 37,
+    "right_eye_2_right_ear": 38,
+    "right_ear_2_right_eye": 39,
+} # 38個?
+
+# アノテーション
+OpenPoseKeypintsAnnoTuple = namedtuple(
+    'OpenPoseKeypintsAnnoTuple',
+    [
+        "index", # Optional[int]
+        "id", # Optional[int]
+        "dataset", # Optional[str]
+        "phase", # Optional[str]
+        "img_id", # Optional[int]
+        "img_path", # Optional[str]
+        "width", # Optional[float]
+        "height", # Optional[float]
+        "obj_pos", # Optional[List[float]]
+        "bbox", # Optioanl[List[float]]
+        "segment_area", # Optional[float]
+        "num_keypoints", # Optional[int]
+        "joint_self", # Optional[List[float]]
+        "scaled", # Optional[float]
+        "iscrowd", # Optional[float]]
+        "segmentation", # Optional[Union[List[float], Dict[List[float], List[float]]]]
+        "skelton", # Optional[List[List[float]]]
+    ]
 )
 
-# 訓練データセットの取得
+# データレコード
+OpenPoseRecordTuple = namedtuple(
+    'OpenPoseRecordTuple',
+    [
+        'annotation',
+        'heatmap', 
+        'heatmap_mask', 
+        'pafs', 
+        'pafs_mask'
+    ]
+)
+
+# データセットの取得
 @functools.lru_cache(1)
-def get_trn_record_info_list(
+def get_anno_tuple_list(
     dataset_dir: str = "",
+    phase: str = "trn",
     is_require_on_disk: bool = True,
     ):
 
+    year: str = dataset_dir.split(os.sep)[-1]
+    anno_file: str = "{}{}_anno.json".format(phase, year)
+
     """データセットへのアクセス"""
-    record_info_list: list = []
-    if is_require_on_disk:
-
-    # JSON形式のアノテーションファイルを読み込む
-        json_file = os.sep.join([dataset_dir, "COCO.json"])
-        with open(json_file) as f:
-            data_this = json.load(f)
-            data_json = data_this['root']
-        
-        num_samples: int = len(data_json)
-        trn_indexes: list = []
-        val_indexes: list = []
-        for ndx in range(num_samples):
-            if data_json[ndx]['isValidation'] != 0.:
-                val_indexes.append(ndx)
-            else:
-                trn_indexes.append(ndx)
-
-        assert len(trn_indexes) !=0, f"No training indexes about {json_file}"
-
-        del val_indexes
-
-        # 生データ(画像)のパスを取得
-        trn_img_list: list = []
-        for ndx in trn_indexes:
-            img_path: str = os.path.join(dataset_dir, data_json[ndx]['img_paths'])
-            trn_img_list.append(img_path)
-        
-        
-        # マスクデータのパスを取得
-        trn_mask_list: list = []
-        for ndx in trn_indexes:
-            img_ndx = data_json[ndx]['img_paths'][-16:-4]
-            anno_path = os.sep.join([dataset_dir,
-                                    'mask',
-                                    f'train{version}',
-                                    f'mask_COCO_train{version}_{img_ndx}.jpg'])
-            trn_mask_list.append(anno_path)
-
-        # アノテーションデータの取得
-        trn_anno_list: list = []
-        for ndx in trn_indexes:
-            trn_anno_list.append(data_json[ndx])
-
-        # 名前付きタプルのリストを作成
-       
-        records = zip(trn_indexes, 
-                    trn_img_list, 
-                    trn_mask_list, 
-                    trn_anno_list)
-        for ndx, img_path, mask_path, coco_anno in records:
-            record_info_list.append(
-                OpenPoseRecordInfoTuple(
-                    ndx,
-                    img_path,
-                    mask_path,
-                    coco_anno,
-                )
-            )
-
-    return record_info_list
-
-
-
-# 検証データセットの取得
-@functools.lru_cache(1)
-def get_val_record_info_list(
-    dataset_dir: str = "",
-    is_require_on_disk: bool = True,
-    ):
-    """データセットへのアクセス"""
-    record_info_list: list = []
+    anno_tuple_list: list = []
     if is_require_on_disk:
 
         # JSON形式のアノテーションファイルを読み込む
-        json_file = os.sep.join([dataset_dir, "COCO.json"])
-        with open(json_file) as f:
+        anno_json_file = os.sep.join([
+            dataset_dir, 
+            "openpose_keypoints_anno",
+            anno_file,
+            ])
+        
+        with open(anno_json_file) as f:
             data_this = json.load(f)
-            data_json = data_this['root']
         
-        num_samples: int = len(data_json)
-        trn_indexes: list = []
-        val_indexes: list = []
+        data_info = data_this["info"]
+        data_license = data_this["license"]
+        data_anno_array = data_this["annotations"]
+        
+        num_samples: int = len(data_anno_array)
+
+
         for ndx in range(num_samples):
-            if data_json[ndx]['isValidation'] != 0.:
-                val_indexes.append(ndx)
-            else:
-                trn_indexes.append(ndx)
-
-        assert len(val_indexes) !=0, f"No validation indexes about {json_file}"
-
-        del trn_indexes
-
-        # 生データ(画像)のパスを取得
-        val_img_list: list = []
-        for ndx in val_indexes:
-            img_path: str = os.path.join(dataset_dir, data_json[ndx]['img_paths'])
-            val_img_list.append(img_path)
-
-        # マスクデータの取得
-        val_mask_list: list = []
-        for ndx in val_indexes:
-            img_ndx = data_json[ndx]['img_paths'][-16:-4]
-            anno_path = os.sep.join([dataset_dir,
-                                    'mask',
-                                    f'val{version}',
-                                    f'mask_COCO_val{version}_{img_ndx}.jpg'])
-            val_mask_list.append(anno_path)
-
-        # アノテーションデータの取得
-        val_anno_list: list = []
-        for ndx in val_indexes:
-            val_anno_list.append(data_json[ndx])
-
-        # 名前付きタプルのリストを作成
-        
-        records = zip(val_indexes, 
-                    val_img_list, 
-                    val_mask_list, 
-                    val_anno_list)
-        for ndx, img_path, mask_path, coco_anno in records:
-            record_info_list.append(
-                OpenPoseRecordInfoTuple(
-                    ndx,
-                    img_path,
-                    mask_path,
-                    coco_anno,
-                )
+            anno_tuple = OpenPoseKeypintsAnnoTuple(
+                index=ndx,
+                id=data_anno_array[ndx]['id'],
+                dataset=data_anno_array[ndx]['dataset'],
+                phase=data_anno_array[ndx]['phase'],
+                img_id=data_anno_array[ndx]['img_id'],
+                img_path=data_anno_array[ndx]['img_path'],
+                width=data_anno_array[ndx]['width'],
+                height=data_anno_array[ndx]['height'],
+                obj_pos=data_anno_array[ndx]['obj_pos'],
+                bbox=data_anno_array[ndx]['bbox'],
+                segment_area=data_anno_array[ndx]['segment_area'],
+                num_keypoints=data_anno_array[ndx]['num_keypoints'],
+                joint_self=data_anno_array[ndx]['joint_self'],
+                scaled=data_anno_array[ndx]['scaled'],
+                iscrowd=data_anno_array[ndx]['iscrowd'],
+                segmentation=data_anno_array[ndx]['segmentation'],
+                skelton=data_anno_array[ndx]['skelton'],
             )
 
-    return record_info_list
+            anno_tuple_list.append(anno_tuple)
+        
+    return anno_tuple_list
 
 
-class MS_COCO_Image:
+class OpenPoseKeypointsData:
     def __init__(self,
-                 img_path: str,
+                 dataset_dir: str,
+                 anno_tuple: OpenPoseKeypintsAnnoTuple,
                  ):
-        self.pil_img: Image = Image.open(img_path)
-        self.np_img: np.ndarray = np.array(self.pil_img, dtype=np.float32) # (C,H,W)
+        self.dataset_dir = dataset_dir
+        self.anno_tuple = anno_tuple
+        self.pil_img: Optional[Image] = None
+        self.np_img: Optional[np.ndarray] = None
+        self.np_heatmap: Optional[np.ndarray] = None
+        self.np_heatmap_mask: Optional[np.ndarray] = None
+        self.np_pafs: Optional[np.ndarray] = None
+        self.np_pafs_mask: Optional[np.ndarray] = None
 
-    def get_np_img(self) -> np.ndarray:
-        return self.np_img
-    
-    def get_pil_img(self) -> Image:
-        return self.pil_img
+    def _get_raw_img(self):
+        img_path: str = os.sep.join([
+            self.dataset_dir,
+            self.anno_tuple.img_path,
+            ])
+                       
+        self.pil_img= Image.open(img_path)
+        self.np_img = np.array(self.pil_img) # (C,H,W)
+
+    def _build_heatmap(self):
+        pass
+
+    def _build_heatmap_mask(self):
+        pass
+
+    def _build_pafs(self):
+        pass
+
+    def _build_pafs_mask(self):
+        pass
+
+    def get_record(self) -> OpenPoseRecordTuple:
+        self._get_raw_img()
+        self._build_heatmap()
+        self._build_pafs()
+        self._build_pafs_mask()
+
+        return OpenPoseRecordTuple(
+            annotation=self.anno_tuple,
+            heatmap=self.np_heatmap,
+            heatmap_mask=self.np_heatmap_mask,
+            pafs=self.np_pafs,
+            pafs_mask=self.np_pafs_mask,
+            )
     
 
 @functools.lru_cache(1, typed=True)
-def get_ms_coco_img(img_path: str) -> MS_COCO_Image:
-    return MS_COCO_Image(img_path)
+def get_openpose_keypoints_data(dataset_dir: str,
+                                anno_tuple: OpenPoseKeypintsAnnoTuple,
+                                ) -> OpenPoseKeypointsData:
+    return OpenPoseKeypointsData(dataset_dir, anno_tuple)
 
 
+# ディスクキャッシュ
 @gzip_cache.memoize(typed=True, tag=disk_cache_tag)
-def get_ms_coco_img_record(img_path: str) -> np.ndarray:
-        ms_coco_img: MS_COCO_Image = get_ms_coco_img(img_path)
-        np_img: np.ndarray = ms_coco_img.get_np_img()
-        return np_img
+def get_openpose(dataset_dir: str,
+                 anno_tuple: OpenPoseKeypintsAnnoTuple,
+                 ) -> OpenPoseRecordTuple:
+    
+    keypoints_data: OpenPoseKeypointsData = \
+        get_openpose_keypoints_data(dataset_dir=dataset_dir,
+                                    anno_tuple=anno_tuple,
+                                    )
+    
+    return keypoints_data.get_record()
 
 
-class MSCOCOKeyPointsDataset(Dataset):
+
+class OpenPoseKeypointsDataset(Dataset):
     def __init__(self,
                  dataset_dir: str,
                  mode: str = 'trn',
